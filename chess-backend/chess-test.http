@@ -1,0 +1,5 @@
+### Board
+GET http://localhost:8080/board
+
+### Move e2 to e4
+POST http://localhost:8080/move?from=e2&to=e4

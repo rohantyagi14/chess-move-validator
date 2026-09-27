@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Chess Move Validator</title>
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: #222;
+            color: white;
+        }
+
+        h1 {
+            margin-top: 20px;
+        }
+
+        .board-container {
+            width: 520px;
+            margin: 30px auto;
+        }
+
+        .coordinates-horizontal {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            margin-left: 20px;
+            font-weight: bold;
+        }
+
+        .coordinates-horizontal span {
+            height: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .board-row {
+            display: flex;
+        }
+
+        .coordinates-vertical {
+            width: 20px;
+            display: grid;
+            grid-template-rows: repeat(8, 60px);
+            font-weight: bold;
+        }
+
+        .coordinates-vertical span {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #board {
+            width: 480px;
+            height: 480px;
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 4px solid white;
+        }
+
+        .square {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            cursor: pointer;
+        }
+
+        .light {
+            background: #f0d9b5;
+        }
+
+        .dark {
+            background: #b58863;
+        }
+
+        .selected {
+            outline: 4px solid yellow;
+            outline-offset: -4px;
+        }
+
+        .legal-move {
+            box-shadow: inset 0 0 0 5px limegreen;
+        }
+
+        .capture-highlight {
+            outline: 5px solid red;
+            outline-offset: -5px;
+            box-shadow: inset 0 0 0 4px red;
+        }
+
+        .check-highlight {
+            outline: 5px solid red;
+            outline-offset: -5px;
+            box-shadow: inset 0 0 0 5px red;
+        }
+
+        .checkmate-highlight {
+            outline: 6px solid red;
+            outline-offset: -6px;
+            box-shadow: inset 0 0 0 6px red;
+        }
+
+        #status {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px auto 10px;
+            padding: 10px 20px;
+            width: fit-content;
+            background: #333;
+            border-radius: 8px;
+        }
+
+        .captured-container {
+            width: 480px;
+            margin: 20px auto;
+            padding: 15px;
+            background: #333;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .captured-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .captured-row {
+            margin: 8px 0;
+            min-height: 30px;
+            font-size: 28px;
+        }
+
+        #resetButton {
+            margin-top: 15px;
+            padding: 10px 22px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        #resetButton:hover {
+            background: #ddd;
+        }
+
+        /* =========================
+           PROMOTION BOX
+           ========================= */
+
+        #promotionBox {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #333;
+            padding: 25px;
+            border-radius: 12px;
+            border: 3px solid white;
+            z-index: 1000;
+        }
+
+        #promotionBox h2 {
+            margin-top: 0;
+        }
+
+        .promotion-button {
+            margin: 8px;
+            padding: 12px 18px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .promotion-button:hover {
+            background: #ddd;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<h1>Chess Move Validator</h1>
+
+<div class="board-container">
+
+    <div class="coordinates-horizontal">
+        <span>a</span>
+        <span>b</span>
+        <span>c</span>
+        <span>d</span>
+        <span>e</span>
+        <span>f</span>
+        <span>g</span>
+        <span>h</span>
+    </div>
+
+    <div class="board-row">
+
+        <div class="coordinates-vertical">
+            <span>8</span>
+            <span>7</span>
+            <span>6</span>
+            <span>5</span>
+            <span>4</span>
+            <span>3</span>
+            <span>2</span>
+            <span>1</span>
+        </div>
+
+        <div id="board"></div>
+
+    </div>
+
+    <div class="coordinates-horizontal">
+        <span>a</span>
+        <span>b</span>
+        <span>c</span>
+        <span>d</span>
+        <span>e</span>
+        <span>f</span>
+        <span>g</span>
+        <span>h</span>
+    </div>
+
+</div>
+
+<div id="status">
+    Loading board...
+</div>
+
+<div class="captured-container">
+
+    <div class="captured-title">
+        Captured Pieces
+    </div>
+
+    <div class="captured-row">
+        White:
+        <span id="whiteCaptured"></span>
+    </div>
+
+    <div class="captured-row">
+        Black:
+        <span id="blackCaptured"></span>
+    </div>
+
+</div>
+
+<button id="resetButton">
+    🔄 Reset Game
+</button>
+
+
+<!-- =========================
+     PROMOTION BOX
+     ========================= -->
+
+<div id="promotionBox">
+
+    <h2>Choose Promotion</h2>
+
+    <button
+            class="promotion-button"
+            onclick="selectPromotion('Q')">
+        Queen ♕
+    </button>
+
+    <button
+            class="promotion-button"
+            onclick="selectPromotion('R')">
+        Rook ♖
+    </button>
+
+    <button
+            class="promotion-button"
+            onclick="selectPromotion('B')">
+        Bishop ♗
+    </button>
+
+    <button
+            class="promotion-button"
+            onclick="selectPromotion('N')">
+        Knight ♘
+    </button>
+
+</div>
+
+
+<script>
+
+    // ==========================================
+    // VARIABLES
+    // ==========================================
+
+    let selectedSquare = null;
+
+    let whiteCaptured = [];
+
+    let blackCaptured = [];
+
+    let previousBoard = null;
+
+    let legalMoves = [];
+
+    let lastCapturedSquare = null;
+
+    let checkKingSquare = null;
+
+    let checkmateKingSquare = null;
+
+    let gameOver = false;
+
+    let pendingFrom = null;
+
+    let pendingTo = null;
+
+
+    // ==========================================
+    // LOAD BOARD
+    // ==========================================
+
+    async function loadBoard() {
+
+        try {
+
+            const response =
+                await fetch("/board");
+
+            const data =
+                await response.text();
+
+            displayBoard(data);
+
+            await updateGameStatus();
+
+        }
+        catch (error) {
+
+            document.getElementById("status")
+                .innerText =
+                "Backend connection failed!";
+
+        }
+
+    }
+
+
+    // ==========================================
+    // PARSE BOARD
+    // ==========================================
+
+    function parseBoard(data) {
+
+        const rows =
+            data.trim().split("\n");
+
+        return rows
+            .filter(row => {
+
+                return row.trim()
+                    .match(/^[1-8]\s/);
+
+            })
+            .map(row => {
+
+                return row.trim()
+                    .split(/\s+/)
+                    .slice(1);
+
+            });
+
+    }
+
+
+    // ==========================================
+    // DISPLAY BOARD
+    // ==========================================
+
+    function displayBoard(data) {
+
+        const board =
+            document.getElementById("board");
+
+        board.innerHTML = "";
+
+        const rows =
+            parseBoard(data);
+
+        if (rows.length !== 8) {
+
+            document.getElementById("status")
+                .innerText =
+                "Board data is not valid.";
+
+            return;
+        }
+
+        rows.forEach((row, rowIndex) => {
+
+            row.forEach((piece, colIndex) => {
+
+                const square =
+                    document.createElement("div");
+
+                square.classList.add("square");
+
+                if ((rowIndex + colIndex) % 2 === 0) {
+
+                    square.classList.add("light");
+
+                } else {
+
+                    square.classList.add("dark");
+
+                }
+
+                if (piece !== ".") {
+
+                    square.innerText = piece;
+
+                }
+
+                if (
+                    selectedSquare !== null &&
+                    selectedSquare.row === rowIndex &&
+                    selectedSquare.col === colIndex
+                ) {
+
+                    square.classList.add("selected");
+
+                }
+
+                const currentPosition =
+                    convertToChessPosition(
+                        rowIndex,
+                        colIndex
+                    );
+
+                if (
+                    legalMoves.includes(
+                        currentPosition
+                    )
+                ) {
+
+                    square.classList.add(
+                        "legal-move"
+                    );
+
+                }
+
+                if (
+                    lastCapturedSquare !== null &&
+                    lastCapturedSquare.row === rowIndex &&
+                    lastCapturedSquare.col === colIndex
+                ) {
+
+                    square.classList.add(
+                        "capture-highlight"
+                    );
+
+                }
+
+                if (
+                    checkKingSquare !== null &&
+                    checkKingSquare.row === rowIndex &&
+                    checkKingSquare.col === colIndex
+                ) {
+
+                    square.classList.add(
+                        "check-highlight"
+                    );
+
+                }
+
+                if (
+                    checkmateKingSquare !== null &&
+                    checkmateKingSquare.row === rowIndex &&
+                    checkmateKingSquare.col === colIndex
+                ) {
+
+                    square.classList.add(
+                        "checkmate-highlight"
+                    );
+
+                }
+
+                square.addEventListener(
+                    "click",
+                    function () {
+
+                        handleClick(
+                            rowIndex,
+                            colIndex,
+                            square,
+                            piece
+                        );
+
+                    }
+                );
+
+                board.appendChild(square);
+
+            });
+
+        });
+
+        previousBoard = rows;
+
+    }
+
+
+    // ==========================================
+    // UPDATE GAME STATUS
+    // ==========================================
+
+    async function updateGameStatus() {
+
+        try {
+
+            const response =
+                await fetch("/game-status");
+
+            const status =
+                await response.text();
+
+            checkKingSquare = null;
+            checkmateKingSquare = null;
+
+
+            if (status === "NO_CHECK") {
+
+                gameOver = false;
+
+                redrawBoard();
+
+                document.getElementById("status")
+                    .innerText =
+                    "Select a piece.";
+
+                return;
+            }
+
+
+            if (status === "WHITE_CHECK") {
+
+                gameOver = false;
+
+                checkKingSquare =
+                    findKingOnBoard("white");
+
+                redrawBoard();
+
+                document.getElementById("status")
+                    .innerText =
+                    "⚠ WHITE KING IS IN CHECK!";
+
+                return;
+            }
+
+
+            if (status === "BLACK_CHECK") {
+
+                gameOver = false;
+
+                checkKingSquare =
+                    findKingOnBoard("black");
+
+                redrawBoard();
+
+                document.getElementById("status")
+                    .innerText =
+                    "⚠ BLACK KING IS IN CHECK!";
+
+                return;
+            }
+
+
+            if (status === "WHITE_CHECKMATE") {
+
+                gameOver = true;
+
+                checkmateKingSquare =
+                    findKingOnBoard("white");
+
+                redrawBoard();
+
+                document.getElementById("status")
+                    .innerText =
+                    "♔ CHECKMATE! BLACK WINS!";
+
+                return;
+            }
+
+
+            if (status === "BLACK_CHECKMATE") {
+
+                gameOver = true;
+
+                checkmateKingSquare =
+                    findKingOnBoard("black");
+
+                redrawBoard();
+
+                document.getElementById("status")
+                    .innerText =
+                    "♚ CHECKMATE! WHITE WINS!";
+
+                return;
+            }
+
+
+            if (status === "STALEMATE") {
+
+                gameOver = true;
+
+                redrawBoard();
+
+                document.getElementById("status")
+                    .innerText =
+                    "🤝 DRAW! STALEMATE!";
+
+                return;
+            }
+
+        }
+        catch (error) {
+
+            console.log(
+                "Game status error:",
+                error
+            );
+
+        }
+
+    }
+
+
+    // ==========================================
+    // FIND KING
+    // ==========================================
+
+    function findKingOnBoard(color) {
+
+        if (previousBoard === null) {
+            return null;
+        }
+
+        const king =
+            color === "white"
+                ? "♔"
+                : "♚";
+
+        for (
+            let row = 0;
+            row < 8;
+            row++
+        ) {
+
+            for (
+                let col = 0;
+                col < 8;
+                col++
+            ) {
+
+                if (
+                    previousBoard[row][col] === king
+                ) {
+
+                    return {
+                        row: row,
+                        col: col
+                    };
+
+                }
+
+            }
+
+        }
+
+        return null;
+
+    }
+
+
+    // ==========================================
+    // GET LEGAL MOVES
+    // ==========================================
+
+    async function getLegalMoves(position) {
+
+        try {
+
+            const response =
+                await fetch(
+                    "/legal-moves?position=" +
+                    position
+                );
+
+            const data =
+                await response.text();
+
+            if (data === "") {
+
+                legalMoves = [];
+
+            } else {
+
+                legalMoves =
+                    data.split(",");
+
+            }
+
+            redrawBoard();
+
+        }
+        catch (error) {
+
+            legalMoves = [];
+
+            document.getElementById("status")
+                .innerText =
+                "Could not load legal moves.";
+
+        }
+
+    }
+
+
+    // ==========================================
+    // REDRAW BOARD
+    // ==========================================
+
+    function redrawBoard() {
+
+        if (previousBoard === null) {
+            return;
+        }
+
+        displayBoard(
+            previousBoard
+                .map((row, index) =>
+                    (index + 1) + " " + row.join(" ")
+                )
+                .join("\n")
+        );
+
+    }
+
+
+    // ==========================================
+    // HANDLE CLICK
+    // ==========================================
+
+    async function handleClick(
+        row,
+        col,
+        square,
+        piece
+    ) {
+
+        if (gameOver) {
+
+            document.getElementById("status")
+                .innerText =
+                "Game over! Press Reset Game.";
+
+            return;
+        }
+
+
+        // ======================================
+        // FIRST CLICK
+        // ======================================
+
+        if (selectedSquare === null) {
+
+            if (piece === ".") {
+
+                document.getElementById("status")
+                    .innerText =
+                    "Please select a chess piece.";
+
+                return;
+            }
+
+            selectedSquare = {
+                row: row,
+                col: col
+            };
+
+            legalMoves = [];
+
+            const position =
+                convertToChessPosition(
+                    row,
+                    col
+                );
+
+            square.classList.add(
+                "selected"
+            );
+
+            document.getElementById("status")
+                .innerText =
+                "Loading legal moves...";
+
+            await getLegalMoves(position);
+
+            document.getElementById("status")
+                .innerText =
+                "Select a highlighted square.";
+
+            return;
+        }
+
+
+        // ======================================
+        // SECOND CLICK
+        // ======================================
+
+        const from =
+            convertToChessPosition(
+                selectedSquare.row,
+                selectedSquare.col
+            );
+
+        const to =
+            convertToChessPosition(
+                row,
+                col
+            );
+
+
+        // Only allow highlighted moves
+        if (!legalMoves.includes(to)) {
+
+            selectedSquare = null;
+            legalMoves = [];
+
+            redrawBoard();
+
+            document.getElementById("status")
+                .innerText =
+                "Invalid move. Select a highlighted square.";
+
+            return;
+        }
+
+
+        // ======================================
+        // CHECK CAPTURE
+        // ======================================
+
+        let capturedPiece = ".";
+
+        if (
+            previousBoard !== null &&
+            previousBoard[row] !== undefined &&
+            previousBoard[row][col] !== undefined
+        ) {
+
+            capturedPiece =
+                previousBoard[row][col];
+
+        }
+
+
+        // ======================================
+        // CHECK PROMOTION
+        // ======================================
+
+        const movingPiece =
+            previousBoard[
+                selectedSquare.row
+            ][
+                selectedSquare.col
+            ];
+
+        const isPawn =
+            movingPiece === "♙" ||
+            movingPiece === "♟";
+
+        const reachesLastRank =
+            isPawn &&
+            (
+                row === 0 ||
+                row === 7
+            );
+
+
+        // ======================================
+        // PROMOTION REQUIRED
+        // ======================================
+
+        if (reachesLastRank) {
+
+            pendingFrom = from;
+            pendingTo = to;
+
+            document.getElementById(
+                "promotionBox"
+            ).style.display = "block";
+
+            return;
+        }
+
+
+        await sendMove(
+            from,
+            to,
+            "Q",
+            capturedPiece,
+            row,
+            col
+        );
+
+    }
+
+
+    // ==========================================
+    // SELECT PROMOTION
+    // ==========================================
+
+    async function selectPromotion(
+        promotionPiece
+    ) {
+
+        document.getElementById(
+            "promotionBox"
+        ).style.display = "none";
+
+        if (
+            pendingFrom === null ||
+            pendingTo === null
+        ) {
+
+            return;
+        }
+
+        const from = pendingFrom;
+        const to = pendingTo;
+
+        pendingFrom = null;
+        pendingTo = null;
+
+        const position =
+            convertPositionToArray(to);
+
+        const row = position.row;
+        const col = position.col;
+
+        let capturedPiece = ".";
+
+        if (
+            previousBoard !== null &&
+            previousBoard[row] !== undefined &&
+            previousBoard[row][col] !== undefined
+        ) {
+
+            capturedPiece =
+                previousBoard[row][col];
+
+        }
+
+        await sendMove(
+            from,
+            to,
+            promotionPiece,
+            capturedPiece,
+            row,
+            col
+        );
+
+    }
+
+
+    // ==========================================
+    // SEND MOVE
+    // ==========================================
+
+    async function sendMove(
+        from,
+        to,
+        promotionPiece,
+        capturedPiece,
+        row,
+        col
+    ) {
+
+        selectedSquare = null;
+        legalMoves = [];
+        lastCapturedSquare = null;
+
+        document.getElementById("status")
+            .innerText =
+            "Moving " + from + " → " + to + "...";
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/move?from=" +
+                    from +
+                    "&to=" +
+                    to +
+                    "&promotion=" +
+                    promotionPiece,
+                    {
+                        method: "POST"
+                    }
+                );
+
+            const result =
+                await response.text();
+
+
+            // ==================================
+            // GET NEW BOARD
+            // ==================================
+
+            const boardResponse =
+                await fetch("/board");
+
+            const boardData =
+                await boardResponse.text();
+
+            const newBoard =
+                parseBoard(boardData);
+
+
+            // ==================================
+            // CAPTURE
+            // ==================================
+
+            if (
+                result.startsWith("Move successful") &&
+                capturedPiece !== "." &&
+                newBoard[row] !== undefined &&
+                newBoard[row][col] !== undefined &&
+                newBoard[row][col] !== "." &&
+                newBoard[row][col] !== capturedPiece
+            ) {
+
+                addCapturedPiece(
+                    capturedPiece
+                );
+
+                lastCapturedSquare = {
+                    row: row,
+                    col: col
+                };
+
+            }
+
+
+            // ==================================
+            // DISPLAY BOARD
+            // ==================================
+
+            if (newBoard.length === 8) {
+
+                previousBoard = newBoard;
+
+                redrawBoard();
+
+            }
+
+
+            // ==================================
+            // GAME STATUS
+            // ==================================
+
+            await updateGameStatus();
+
+
+            if (!gameOver) {
+
+                document.getElementById("status")
+                    .innerText =
+                    result;
+
+            }
+
+        }
+        catch (error) {
+
+            document.getElementById("status")
+                .innerText =
+                "Move failed. Backend check karo.";
+
+        }
+
+    }
+
+
+    // ==========================================
+    // ADD CAPTURED PIECE
+    // ==========================================
+
+    function addCapturedPiece(piece) {
+
+        const color =
+            getPieceColor(piece);
+
+        if (color === "white") {
+
+            whiteCaptured.push(piece);
+
+        } else if (color === "black") {
+
+            blackCaptured.push(piece);
+
+        }
+
+        displayCapturedPieces();
+
+    }
+
+
+    // ==========================================
+    // GET PIECE COLOR
+    // ==========================================
+
+    function getPieceColor(piece) {
+
+        if (!piece || piece === ".") {
+            return null;
+        }
+
+        const code =
+            piece.codePointAt(0);
+
+        if (
+            code >= 0x2654 &&
+            code <= 0x2659
+        ) {
+
+            return "white";
+
+        }
+
+        if (
+            code >= 0x265A &&
+            code <= 0x265F
+        ) {
+
+            return "black";
+
+        }
+
+        return null;
+
+    }
+
+
+    // ==========================================
+    // DISPLAY CAPTURED PIECES
+    // ==========================================
+
+    function displayCapturedPieces() {
+
+        document.getElementById(
+            "whiteCaptured"
+        ).innerText =
+            whiteCaptured.join(" ");
+
+        document.getElementById(
+            "blackCaptured"
+        ).innerText =
+            blackCaptured.join(" ");
+
+    }
+
+
+    // ==========================================
+    // CONVERT ROW/COL -> CHESS POSITION
+    // ==========================================
+
+    function convertToChessPosition(
+        row,
+        col
+    ) {
+
+        const file =
+            String.fromCharCode(
+                97 + col
+            );
+
+        const rank =
+            8 - row;
+
+        return file + rank;
+
+    }
+
+
+    // ==========================================
+    // CONVERT CHESS POSITION -> ROW/COL
+    // ==========================================
+
+    function convertPositionToArray(
+        position
+    ) {
+
+        const col =
+            position.charCodeAt(0) - 97;
+
+        const row =
+            8 -
+            parseInt(
+                position.charAt(1)
+            );
+
+        return {
+            row: row,
+            col: col
+        };
+
+    }
+
+
+    // ==========================================
+    // RESET GAME
+    // ==========================================
+
+    document.getElementById(
+        "resetButton"
+    ).addEventListener(
+        "click",
+        async function () {
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/reset",
+                        {
+                            method: "POST"
+                        }
+                    );
+
+                const result =
+                    await response.text();
+
+                selectedSquare = null;
+
+                legalMoves = [];
+
+                whiteCaptured = [];
+
+                blackCaptured = [];
+
+                previousBoard = null;
+
+                lastCapturedSquare = null;
+
+                checkKingSquare = null;
+
+                checkmateKingSquare = null;
+
+                pendingFrom = null;
+
+                pendingTo = null;
+
+                gameOver = false;
+
+                document.getElementById(
+                    "promotionBox"
+                ).style.display = "none";
+
+                displayCapturedPieces();
+
+                await loadBoard();
+
+                document.getElementById("status")
+                    .innerText =
+                    result;
+
+            }
+            catch (error) {
+
+                document.getElementById("status")
+                    .innerText =
+                    "Reset failed. Backend check karo.";
+
+            }
+
+        }
+    );
+
+
+    // ==========================================
+    // START
+    // ==========================================
+
+    displayCapturedPieces();
+
+    loadBoard();
+
+</script>
+
+</body>
+
+</html>
